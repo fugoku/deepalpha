@@ -74,6 +74,37 @@ To add or remove coins, edit this list and re-run `download_data.py` and `train.
 
 ---
 
+## Canadian Arbitrage Scanner
+
+The dashboard's read-only scanner checks every available spot trading-pair variant involving the configured 30 coins on NDAX, Kraken, and Coinbase, including non-CAD quote assets. It converts quote values through public spot markets to CAD when a route is available; pairs without a quote-to-CAD path are excluded. Triangular routes begin and end in CAD. Those venues serve Canadian customers; confirm your own province/account eligibility. The scanner uses public market data and does not connect with API keys or place orders.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CANADIAN_ARBITRAGE_EXCHANGES` | `ndax,kraken,coinbase` | Comma-separated scanner venues. Only the built-in Canadian-serving allowlist is accepted. |
+| `ARBITRAGE_ASSETS` | `LTC,BCH,XLM,XRP,ADA,DOGE,SOL,TRX` | Smaller lower-transfer-cost universe used by the paper trader and whale-flow checks; the dashboard arbitrage scanner instead scans all configured coins. |
+| `ARBITRAGE_NDAX_TAKER_FEE` | `0.002` | Estimated NDAX taker fee as a decimal (0.002 = 0.20%). Set your actual rate. |
+| `ARBITRAGE_KRAKEN_TAKER_FEE` | `0.004` | Estimated Kraken taker fee as a decimal (0.004 = 0.40%). Set your actual rate. |
+| `ARBITRAGE_COINBASE_TAKER_FEE` | `0.006` | Estimated Coinbase taker fee as a decimal (0.006 = 0.60%). Set your actual rate. |
+| `ARBITRAGE_CAPITAL_CAD` | `1000` | CAD amount used to estimate opportunity profit. The scanner enforces a hard maximum of CAD $1,000 per opportunity, regardless of this setting. |
+| `ARBITRAGE_FIXED_FEE_CAD_PER_ORDER` | `0` | Extra fixed charge per order, in CAD. |
+| `ARBITRAGE_REBALANCE_COST_CAD` | `2` | Estimated total CAD transfer/rebalancing charge per cross-exchange round trip. |
+
+Rates above are estimates, not live account-specific fee schedules. Taker fees are deducted from every leg, and configured fixed costs and rebalance costs are deducted from the estimated return. These costs are applied automatically and are not user-selectable in the dashboard. The scanner displays every positive-net opportunity after those costs; it has no configurable minimum-profit cutoff. The ML model controls directional paper-trade entries separately and does not invent an arbitrage threshold. Cross-exchange execution assumes you already hold inventory on both venues; transfers can take time and incur additional costs. Cross-exchange estimates walk up to 20 levels of both venue order books, match executable base-asset size, apply proportional taker fees to each fill, and stop when the next matched level is no longer profitable. The chosen CAD capital caps buy-side spend and cannot exceed $1,000 per opportunity; fixed and rebalance costs are then deducted. If either order book is unavailable, the scanner labels the result as a top-of-book estimate instead. Triangular routes remain top-of-book estimates. Neither calculation models latency, queue position, account-specific fee tiers, price movement during execution, or exchange transfer delays; all scans are read-only and are not trade instructions.
+
+The depth-walking enhancement was informed by the general approach in [cjudice-commits/prediction-market-arb](https://github.com/cjudice-commits/prediction-market-arb). That project's Kalshi/Polymarket contracts, fee schedule, alerts, and code are not used; its market structure does not apply to Canadian crypto spot exchanges.
+
+### Continuous ML paper trader
+
+Run `python ml_paper_trader.py` in a separate process alongside `streamlit run dashboard.py`. It polls the smaller `ARBITRAGE_ASSETS` CAD markets every five minutes, refreshes up to 720 hourly candles hourly, checks large-trade flow every 15 minutes, and checks public headlines every 30 minutes. The ML service deliberately uses this smaller universe to limit its workload; only an explicit dashboard scan fetches the broader pair set, and order books are fetched only for potentially profitable cross-venue spreads. The service stores its simulated trade journal, learner heartbeat, model scores, and trained model in `DATA_DIR`. It does not submit orders. The dashboard's model panel reports the last heartbeat, training holdout scores, available pairs, simulated positions, and latest directional scores. The feature set includes returns and momentum, EMA/SMA trends, RSI, MACD, ATR and realized volatility, Bollinger bands, Stochastic, ADX and directional movement, CCI, Chaikin Money Flow, MFI, Donchian channels, relative volume, rolling VWAP, and OBV slope. Historical labels look four hours ahead and account for estimated round-trip fees; an 80/20 chronological holdout is reported before refitting. Closed paper trades are included in subsequent daily retraining. Recent public GDELT headlines are classified for market-moving events; new paper entries pause during recent high-impact headlines and if the catalyst service is unavailable. The dashboard also surfaces recent large public exchange prints and venue-level buy/sell imbalance. These trades do not reveal beneficial owners, wallets, or actual on-chain flows.
+
+CUDA training is opt-in: install a CUDA-enabled PyTorch build compatible with your driver, confirm at least one GPU is visible to PyTorch, then run `python ml_paper_trader.py --device cuda`. It supports one GPU or two visible GPUs; with two, both cards are used for neural-network training. It does not use more than two GPUs, mine, or keep GPUs at 100% utilization. If no GPU is visible, the explicit CUDA option exits with an explanation. The app cannot guarantee profitability or make an exchange support short selling; shorts are paper simulations only.
+
+RAM is detected from the operating system at startup. By default, the paper trader limits its estimated working set to 50% of currently available physical RAM and preserves the rest for Windows and other applications. Historical candle downloads are reduced to stay within that estimate; it fails clearly if there is not enough room for training data. Set `PAPER_MEMORY_FRACTION` to a value from `0.01` through `0.8` or set `PAPER_MAX_RAM_GB` to a positive hard cap. You can also pass `--max-ram-gb 4` on the command line; `0` leaves the automatic cap in effect. These are working-set limits/estimates, not operating-system-enforced process limits.
+
+`WHALE_MIN_TRADE_CAD` (default `10000`) sets the minimum estimated CAD value of a large public exchange print; `WHALE_MEDIAN_MULTIPLE` (default `10`) requires it to also exceed that multiple of the recent median print. A sustained, strong venue-level imbalance opposing the model can block a new paper entry. These settings cannot identify a wallet or establish the true origin or destination of funds. `CATALYST_PAUSE_MINUTES` (default `60`) controls how long a recent high-impact headline can pause new entries; if the public headline service is unavailable, the paper trader conservatively pauses entries until it recovers. Neither feature affects the close logic for existing simulated positions.
+
+---
+
 ## Example Configurations
 
 ### Conservative

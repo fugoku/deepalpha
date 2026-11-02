@@ -69,8 +69,39 @@ DATA_DIR: str = os.getenv("DATA_DIR", "data")
 COINS: list[str] = [
     "BTC", "ETH", "SOL", "BNB", "DOGE", "AVAX", "LINK", "ARB", "OP", "APT",
     "SUI", "INJ", "TIA", "WLD", "NEAR", "FET", "AAVE", "DOT", "ADA", "XRP",
-    "LTC", "BCH", "CRV", "ONDO", "ENA", "JUP", "RENDER",
+    "LTC", "BCH", "CRV", "ONDO", "ENA", "JUP", "RENDER", "XLM", "TRX", "XMR",
 ]
 
 # ─── Loop timing ───────────────────────────────────────────────────────────
 MAIN_LOOP_SECONDS: int = int(os.getenv("MAIN_LOOP_SECONDS", "60"))
+
+# Canadian-serving CAD spot arbitrage venues. This scanner is read-only.
+CANADIAN_ARBITRAGE_EXCHANGES: tuple[str, ...] = tuple(
+    name.strip().lower()
+    for name in os.getenv("CANADIAN_ARBITRAGE_EXCHANGES", "ndax,kraken,coinbase").split(",")
+    if name.strip()
+)
+ARBITRAGE_TAKER_FEES: dict[str, float] = {
+    "ndax": float(os.getenv("ARBITRAGE_NDAX_TAKER_FEE", "0.002")),
+    "kraken": float(os.getenv("ARBITRAGE_KRAKEN_TAKER_FEE", "0.004")),
+    "coinbase": float(os.getenv("ARBITRAGE_COINBASE_TAKER_FEE", "0.006")),
+}
+ARBITRAGE_ASSETS: frozenset[str] = frozenset(
+    asset.strip().upper()
+    for asset in os.getenv(
+        "ARBITRAGE_ASSETS", "LTC,BCH,XLM,XRP,ADA,DOGE,SOL,TRX"
+    ).split(",")
+    if asset.strip()
+)
+ARBITRAGE_CAPITAL_CAD: float = float(os.getenv("ARBITRAGE_CAPITAL_CAD", "1000"))
+ARBITRAGE_FIXED_FEE_CAD_PER_ORDER: float = float(
+    os.getenv("ARBITRAGE_FIXED_FEE_CAD_PER_ORDER", "0")
+)
+ARBITRAGE_REBALANCE_COST_CAD: float = float(
+    os.getenv("ARBITRAGE_REBALANCE_COST_CAD", "2")
+)
+PAPER_MEMORY_FRACTION: float = float(os.getenv("PAPER_MEMORY_FRACTION", "0.5"))
+PAPER_MAX_RAM_GB: float = float(os.getenv("PAPER_MAX_RAM_GB", "0"))
+WHALE_MIN_TRADE_CAD: float = float(os.getenv("WHALE_MIN_TRADE_CAD", "10000"))
+WHALE_MEDIAN_MULTIPLE: float = float(os.getenv("WHALE_MEDIAN_MULTIPLE", "10"))
+CATALYST_PAUSE_MINUTES: int = int(os.getenv("CATALYST_PAUSE_MINUTES", "60"))

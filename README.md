@@ -183,6 +183,24 @@ DeepAlpha is an open-source ML trading system that predicts crypto price directi
 
 The core model achieves **84.6% directional accuracy** on walk-forward validated out-of-sample data.
 
+## Canadian Crypto Arbitrage Scanner
+
+The Streamlit dashboard brings together Canadian crypto charts, technical indicators, and a **read-only arbitrage scanner** for all configured coin-pair variants on NDAX, Kraken, and Coinbase, including non-CAD quote currencies. The scanner finds triangular routes on one exchange and cross-exchange price differences; quote values are converted through available spot markets to CAD. It subtracts estimated taker fees, fixed per-order costs, quote-conversion spreads, and a configurable cross-exchange rebalancing/transfer cost before displaying net profit. The scanner checks all 30 configured coins; the smaller `ARBITRAGE_ASSETS` setting is reserved for lower-resource paper trading and whale-flow checks.
+
+Run the dashboard with `streamlit run dashboard.py`, choose the Canadian-serving venues, and click **Scan Canadian markets**. Non-CAD pairs are included only when a public quote-to-CAD conversion path is available; triangular routes start and end in CAD. No orders are placed. Fee tiers and withdrawal/network charges vary by account and can change, so set the `ARBITRAGE_*` values in `.env` to your own current costs. Scans use public spot markets and do not guarantee executable profit: depth, slippage, transfer delays, and exchange restrictions can erase an apparent spread.
+
+## Machine-Learning Paper Trader and Chart Indicators
+
+The Canadian chart view supports the configured 30-crypto universe on CAD spot markets. The paper learner downloads up to 720 hourly candles from a selected Canadian-serving venue and uses returns/momentum, EMA 12/26, RSI 14, MACD histogram, ATR 14, Bollinger %B/width, Stochastic 14, relative volume, rolling VWAP distance, and OBV slope. It builds four-hour-ahead labels after estimated trading fees, reports a chronological 80/20 historical holdout score, then retrains daily with completed paper-trade outcomes. A long-only or short-direction model can create **simulated** trades; shorts are research-only and are not represented as available Canadian spot orders.
+
+Run the continuous paper service in a separate terminal; it saves the SQLite trade journal and model under `data/`, which the dashboard reads:
+
+```bash
+python ml_paper_trader.py
+```
+
+By default the service polls every five minutes, detects available RAM, reserves headroom for Windows, and caps its estimated working set at 50% of available memory. Optional NVIDIA-GPU training is available with `python ml_paper_trader.py --device cuda` after installing a CUDA-enabled PyTorch build compatible with the machine's NVIDIA driver. It works with **one or two visible CUDA GPUs**: a single GPU trains by itself, and two GPUs are both used during training. This small, tabular workload is not a GPU stress test or mining workload, and it will not keep GPUs at 100% utilization between daily retrains. The process places no real orders.
+
 ## Plans
 
 | Feature | Free (GitHub) | [Pro $39/mo](https://deepalphabot.com/cloud) | [Lifetime $199](https://deepalphabot.com/cloud) |
